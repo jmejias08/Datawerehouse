@@ -1,0 +1,52 @@
+CREATE VIEW v_fact_ventas
+AS
+select 
+	o.OrderID as venta_id,
+    (select fecha_key from dim_tiempo where fecha_completa = dateadd(year, 24,o.orderdate) ) fecha_key, -- se le suman 24 años para que las fechas coincidan con la de tabla de dimenciones de tiempo
+  	(select cliente_key from dim_cliente where customerid = o.customerid) cliente_key, -- se ajustan las referencias
+    (select producto_key from dim_producto where isnumeric(producto_key)=1  
+	and cast(producto_key as varchar(10)) = cast(od.productid as varchar(10)))producto_key, -- se ajusta lla referencia a product_id
+	( select empleado_key from dim_empleado where SUBSTRING(empleado_key, 4, 3) = CAST(o.employeeid AS varchar(10)) -- se adapto para que funcionara con string y los prefijos
+   and substring(empleado_key,1,3)='NW_')  as empleado_key,
+    (select transportista_key from dim_transportista where transportista_key = o.shipvia) transportista_key,
+	od.quantity as cantidad,
+    od.unitprice as precio_unitario,
+    od.discount as descuento,
+    od.quantity * od.unitprice * (1 - od.discount)  as total_venta
+from staging.dbo.orders o
+inner join staging.dbo.[orderdetails] od on o.orderid = od.orderid
+inner join staging.dbo.products p on od.productid = p.productid
+
+union all 
+
+select 
+	dp.codigo_pedido as venta_id,
+	(select fecha_key from dim_tiempo where fecha_completa = p.fecha_pedido)fecha_key,
+    (select cliente_key from dim_cliente where customerid = CAST(p.codigo_cliente AS VARCHAR(10))) AS cliente_key, -- Se ajustan las referencias y se castea a varchar para que sean compatibles
+	(select producto_key from dim_producto where isnumeric(producto_key)=0 and 
+	producto_key = dp.codigo_producto)producto_key,	 -- se ajustan las referencias
+	(select empleado_key from dim_empleado 	where substring(empleado_key,4,3) = cl.codigo_empleado_rep_ventas -- se adapto para que funcionara con string y los prefijos
+	and substring(empleado_key,1,3)='JD_')empleado_key,
+    4 transportista_key,
+	dp.cantidad,
+    dp.precio_unidad,
+    0 as descuento,
+    dp.cantidad * dp.precio_unidad as total_venta
+from staging.dbo.pedido p
+inner join staging.dbo.detalle_pedido dp 
+on p.codigo_pedido=dp.codigo_pedido
+left join staging.dbo.cliente cl 
+on cl.codigo_cliente=p.codigo_cliente;
+
+
+--EXEC sp_help 'dim_empleado';
+--EXEC sp_help 'dim_empleado';
+
+--SELECT * FROM fact_ventas;
+
+--select 
+--   ( select empleado_key from dim_empleado where SUBSTRING(empleado_key, 4, 3) = CAST(o.employeeid AS varchar(10))
+--   and substring(empleado_key,1,3)='NW_')  as empleado_key
+--from staging.dbo.orders o
+--inner join staging.dbo.[orderdetails] od on o.orderid = od.orderid
+--inner join staging.dbo.products p on od.productid = p.productid

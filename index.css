@@ -1,0 +1,14 @@
+/* Selector hijo directo: div > a */
+/* div > a {
+    color: yellow;
+} */
+
+/* Selector hermano siguiente: div + a */
+div + a {
+    color: green;
+}
+
+/* Selector hermano general: div ~ a */
+div ~ a {
+    font-style: italic; 
+}
